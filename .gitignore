@@ -1,3 +1,7 @@
 *.pdf
 project_script.py
-
+sj*
+*copy.py
+*.DS_Store
+**/.DS_Store
+*.asv
