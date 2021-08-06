@@ -189,35 +189,59 @@ scissors = category_list[5]
 scramblepix = category_list[6]
 shoe = category_list[7]
         
+#change working directory
+import os
+os.chdir(path='/Users/tydingsmcclary/Documents/SCAN MASTER/Semester2/Stats/Part2/Project/')
 
 ## FIGURES 
 # a) individual subjects
-for p in range(0, len(cdata)):
-    plt.figure(figsize=(10, 7))
-    plt.boxplot([svc_acc[p], logreg_acc[p]], showmeans=True, 
-                meanprops={"marker":"s","markerfacecolor":"white", "markeredgecolor":"green"})
-    plt.scatter(np.random.normal(1, 0.02, len(svc_acc[p])), svc_acc[p], s = 30, color = 'b')
-    plt.scatter(np.random.normal(2, 0.02, len(logreg_acc[p])), logreg_acc[p], s = 30, color = 'r')
-    plt.xticks([1, 2], ['SVC', 'LogisticRegression'])
-    plt.ylabel('Accuracy')
-    plt.title('Accuracy Subject %d'%(p+1))
-    plt.show()
 
-# a) complete    
+fig, ax = plt.subplots(2,2, figsize=(20,15))
+for p in range(0, len(cdata)):
+
+    if p > 1:
+        ax[1,p-2].boxplot([svc_acc[p], logreg_acc[p]], showmeans=True, 
+                    meanprops={"marker":"s","markerfacecolor":"white", "markeredgecolor":"green"})
+        ax[1,p-2].scatter(np.random.normal(1, 0.02, len(svc_acc[p])), svc_acc[p], s = 30, color = 'b')
+        ax[1,p-2].scatter(np.random.normal(2, 0.02, len(logreg_acc[p])), logreg_acc[p], s = 30, color = 'r')
+        ax[1,p-2].set_xticklabels( ['SVC', 'LogisticRegression'], fontsize=20)
+        ax[1,p-2].set_ylim((0.4,0.95))
+        ax[1,p-2].set_title('Subject %d'%(p+1), fontsize=20)
+        ax[1,p-2].set_ylabel('Decoding Accuracy', fontsize = 20)
+    else:
+        ax[0,p].boxplot([svc_acc[p], logreg_acc[p]], showmeans=True, 
+                    meanprops={"marker":"s","markerfacecolor":"white", "markeredgecolor":"green"})
+        ax[0,p].scatter(np.random.normal(1, 0.02, len(svc_acc[p])), svc_acc[p], s = 30, color = 'b')
+        ax[0,p].scatter(np.random.normal(2, 0.02, len(logreg_acc[p])), logreg_acc[p], s = 30, color = 'r')
+        ax[0,p].set_xticklabels( ['SVC', 'LogisticRegression'], fontsize = 20)
+        ax[0,p].set_ylim((0.4,0.95))
+        ax[0,p].set_title('Subject %d'%(p+1), fontsize=20)
+        ax[0,p].set_ylabel('Decoding Accuracy', fontsize = 20)
+        
+#fig.suptitle('Decoding Accuracy for Individual Subjects', fontsize=40)
+for axs in ax.flat:
+    axs.label_outer()
+plt.savefig('some_subplots.png')
+plt.show()
+
+# a) complete  
+plt.rc('axes', labelsize = 20)  
 plt.figure(figsize=(10, 7))
 plt.boxplot([np.mean(svc_acc, axis=1), np.mean(logreg_acc, axis=1)], showmeans=True,
             meanprops={"marker":"s","markerfacecolor":"white", "markeredgecolor":"green"})
 plt.scatter(np.random.normal(1, 0.01, len(cdata)), np.mean(svc_acc, axis=1), s = 30, color='b')
 plt.scatter(np.random.normal(2, 0.01, len(cdata)), np.mean(logreg_acc, axis=1), s = 30, color='r')
-plt.xticks([1, 2], ['SVC', 'LogisticRegression'])
-plt.ylabel('Accuracy')
-plt.title('Accuracy Total')
+plt.xticks([1, 2], ['SVC', 'LogisticRegression'], fontsize=20)
+plt.ylabel('Decoding Accuracy')
+plt.ylim((0.55,0.85))
+#plt.title('Total Decoding Accuracy', fontsize=25)
+plt.savefig('acc_tot.png')
 plt.show()
 
 
 # b) for the individual classes
 
-plt.figure(figsize=(8, 6))
+plt.figure(figsize=(10, 7))
 
 classifiers = ['SVC', 'LogisticRegression']
 all_categories = unique_cond
@@ -230,10 +254,15 @@ for i, (color, classifier_name) in enumerate(zip(['b','r'],
     score_means = [
         np.mean(category_list[c][i])*100
         for c in range(0,len(category_list))
-    ]
+        ]
+    #score_sd = [
+    #    (np.std(category_list[c][i])*100)/(len(category_list[c][i]) * len(category_list[c][i][0])) * 1.96
+    #    for c in range(0,len(category_list))
+    #    ]
 
     plt.barh(tick_position, score_means,
              label=classifier_name,
+             #xerr = score_sd,
              height=height, color=color)
     tick_position = tick_position + height
 
@@ -242,9 +271,9 @@ plt.ylabel('Category')
 plt.axvline(x=50, color='m', linestyle='--')
 plt.xlim(xmax=100)
 plt.legend(loc='lower right', ncol=1)
-plt.title(
-    'Classification Accuracy for Different Categories')
+#plt.title('Classification Accuracy for Different Categories')
 plt.tight_layout()        
+plt.savefig('ind_classes.png')
 
         
 # c) Searching the Grid for best C hyperparameter
@@ -300,7 +329,7 @@ gcv = GroupKFold(n_splits=9)
 
 #and the parameter grid to search
 p_grid = {'selectkbest__k': np.linspace(1000,2000,9, dtype='int'),
-          'linearsvc__C': np.logspace(-5,3,num=9,base=10.)
+          'linearsvc__C': np.logspace(-5,2,num=8,base=10.)
           }
 
 #and empty lists to append our results of interest to
@@ -347,25 +376,3 @@ for p in range(0,len(haxby_path)):
     print('Accuracy for Subject %d on test set: {0:6.2f}'.format(svc_score[p]*100)%(p+1), end='%')
     print('\n_________________________________________________________\n')
     
-
-
-    
-    
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
