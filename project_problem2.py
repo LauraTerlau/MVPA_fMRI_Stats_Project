@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import sklearn 
 from sklearn import linear_model
-import seaborn as sns; sns.set('paper')
+import seaborn as sns; sns.set('paper', 'white')
 import os
 
 os.chdir('/Users/tydingsmcclary/Documents/SCAN MASTER/Semester2/Stats/Part2/Project/')
@@ -24,23 +24,35 @@ y = 1.5 * x + np.random.normal(0,1.5,10)
 y_ideal = 1.5 * x
 y_less = 1 * x
 x_new_points = np.linspace(-3.5, 3.5, 10)
-y_new_points = 0.85 * x_new_points + np.random.normal(0,1.5,10)
+y_new_points = 0.8 * x_new_points + np.random.normal(0,1.5,10)
 x = x[:, np.newaxis]
+x_new_points = x_new_points[:, np.newaxis]
+x_all = np.vstack((x,x_new_points))
+y_all = np.hstack((y,y_new_points))
+                  
+#simple linear regression models
+only_tr_points = linear_model.LinearRegression(fit_intercept=False)
+only_tr_points.fit(x, y)
+
+all_points = linear_model.LinearRegression(fit_intercept=False)
+all_points.fit(x_all, y_all)
 
 #plot1
 plt.rcParams['figure.figsize'] = [12, 8]
 plt.plot(x, y, 'ko')
-plt.plot(x, y_ideal, color='black', linewidth=2.5)
+plt.plot(x, only_tr_points.predict(x), color='black', linewidth=2)
 plt.xlim((-4.5,4.5))
+plt.ylim((-5,5))
 plt.savefig('lina.png')
 plt.show()
 
 #plot2
 plt.rcParams['figure.figsize'] = [12, 8]
 plt.plot(x, y, 'ko')
-plt.plot(np.linspace(-3.5, 3.5, 10), y_new_points, 'cs')
-plt.plot(x_new_points, y_less, color='cyan', linewidth=2.5)
+plt.plot(x_new_points, y_new_points, 'cs')
+plt.plot(x_all, all_points.predict(x_all), color='cyan', linewidth=2)
 plt.xlim((-4.5,4.5))
+plt.ylim((-5,5))
 plt.savefig('linb.png')
 plt.show()
 
@@ -55,7 +67,7 @@ for s in np.linspace(-1, 2, 200):
     lin_reg_rsq.append(1/2 * sum((y-y_hat)**2))
 
 plt.plot(lin_reg_slopes, lin_reg_rsq, color='blue', linewidth=3)
-plt.plot(lin_reg_slopes[np.where(lin_reg_rsq == min(lin_reg_rsq))[0][0]], min(lin_reg_rsq), 'bo')
+plt.plot(lin_reg_slopes[np.where(lin_reg_rsq == min(lin_reg_rsq))[0][0]], min(lin_reg_rsq), 'bo', ms = 8, mfc = 'blue')
 plt.xlabel('Slope Value')
 plt.ylabel('RSS/2')
 plt.show()
@@ -84,6 +96,7 @@ for i in range(0,len(lmbdt)):
 plt.xlabel('Slope Value')
 plt.ylabel('E(w) [with q = 1])')
 plt.title('Different Optimal Slope Values depending on Lambda for Lasso Regression [q = 1]')
+plt.ylim((0,200))
 plt.legend()
 plt.savefig('Lasso.png')
 plt.show()
@@ -110,6 +123,7 @@ for i in range(0,len(lmbdt)):
 plt.xlabel('Slope Value')
 plt.ylabel('E(w) [with q = 2]')
 plt.title('Different Optimal Slope Values depending on Lambda for Ridge Regression [q = 2]')
+plt.ylim((0,200))
 plt.legend()
 plt.savefig('Ridge.png')
 plt.show()
