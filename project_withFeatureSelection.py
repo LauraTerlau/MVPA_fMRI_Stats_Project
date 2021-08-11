@@ -19,7 +19,12 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 from sklearn.feature_selection import SelectKBest, f_classif
 from sklearn.linear_model import LogisticRegression
-#from sklearn.multiclass import OneVsOneClassifier, OneVsRestClassifier
+from sklearn.multiclass import OneVsOneClassifier, OneVsRestClassifier
+
+#change working directory for saving plots
+import os
+os.chdir(path='/Users/tydingsmcclary/Documents/SCAN MASTER/Semester2/Stats/Part2/Project/')
+
 
 #fetching subjects 1 to 4
 haxby_dataset = datasets.fetch_haxby(subjects=[1, 2, 3, 4])
@@ -96,186 +101,228 @@ for p in range(0,len(haxby_path)):
 
 
 ### TASK 1                                                                 ###
-### a) Multinomial Logistic Regression vs. SVM (one vs. rest approach)     ###
+### a) Multinomial Logistic Regression vs. SVM (OVO, OVR [multiclass       ###
+### module], OVR inherent to classifier)                                   ###
 ### b) Decoding accuracy of individual classes                             ###
 ### c) Nested Cross Validation for Parameter Search                        ###
 
-
-#SVC
-svc = make_pipeline(StandardScaler(), SelectKBest(f_classif, k = 1500),
-                    svm.LinearSVC(C=1.,max_iter=5000, penalty='l2'
-                                  , multi_class='ovr'
-                                  , class_weight='balanced', random_state=0)
-                    )
-                    
-                         
-#LogReg
-logreg = make_pipeline(StandardScaler(), SelectKBest(f_classif, k = 1500),
-                       LogisticRegression(C=1., penalty='l2'
-                                          , multi_class='ovr'
-                                          , max_iter=5000, solver='lbfgs', 
-                                          class_weight='balanced', random_state=0)
-                       )
-                            
+#different multiclass strategies:
+mult_strat = ['OVO', 'OVR', 'int_OVR']
 
 
-svc_acc = np.empty([len(cdata), nruns])
-logreg_acc = np.empty([len(cdata), nruns])
-runs = [prt1_runs, prt2_runs, prt3_runs, prt4_runs]
-conditions = [prt1_conditions, prt2_conditions, prt3_conditions, prt4_conditions]
-
-#for b) -> making an additional list for each category to store accuracy per fold
-unique_cond = np.unique(conditions[0])
-category_list = []
-for c in range(0, len(unique_cond)):
-    #for every category we create a list inside the list
-    category_list.append(np.empty([2 #SVC vs. LogReg 
-                                   ,4 #4 participants
-                                   ,nruns #12 folds
-                                   ])
-                         )
-
-
-
-
-for p in range(0, len(cdata)): 
-    #every participant
-    print('\nSVC vs Multinomial Logistic Regression\nSubject {} \n__________________'.format(p+1))
-    for fold in range(0, nruns): 
-        #fold
-        x_test  = cdata[p][np.where(runs[p]==fold),:][0] 
-        #since we are working with everything stored in lists, we need to specify again that this is the list inside the list
-        Y_test  = conditions[p][np.where(runs[p]==fold)]
-        x_train = cdata[p][np.where(runs[p]!=fold),:][0] 
-        Y_train = conditions[p][np.where(runs[p]!=fold)]
-        f_svc   = svc.fit(x_train, Y_train)
-        svc_acc[p][fold] = f_svc.score(x_test, Y_test)
-        f_logreg = logreg.fit(x_train, Y_train)
-        logreg_acc[p][fold] = f_logreg.score(x_test, Y_test)
+#outer for loop defining the multiclass strategy and going through all steps 
+#including plotting and saving figures
+for strat in range(0, len(mult_strat)):
+    
+    
+    #SVC
+    svc = make_pipeline(StandardScaler(), SelectKBest(f_classif, k = 1500),
+                        svm.LinearSVC(C=1.,max_iter=5000, penalty='l2'
+                                      , multi_class='ovr'
+                                      , class_weight='balanced', random_state=0),
+                        )                
+                             
+    #LogReg
+    logreg = make_pipeline(StandardScaler(), SelectKBest(f_classif, k = 1500),
+                           LogisticRegression(C=1., penalty='l2'
+                                              , multi_class='ovr'
+                                              , max_iter=5000, solver='lbfgs', 
+                                              class_weight='balanced', random_state=0),
+                           )
+    if strat == 0:
+        svc = OneVsOneClassifier(svc)   
+        logreg = OneVsOneClassifier(logreg)   
+        if str(logreg)[0:8] == str(svc)[0:8]:
+            print('**{} Classifier from sklearn.multiclass module**'.format(str(svc)[0:8]))
+    elif strat == 1:
+        svc = OneVsRestClassifier(svc)
+        logreg = OneVsRestClassifier(logreg)
+        if str(logreg)[0:9] == str(svc)[0:9]:
+            print('**{} Classifier from sklearn.multiclass module**'.format(str(svc)[0:9]))
+    
+    else:
+        print('**Internal OneVsRest Classifier Option**')                       
+    
+    
+    svc_acc = np.empty([len(cdata), nruns])
+    logreg_acc = np.empty([len(cdata), nruns])
+    runs = [prt1_runs, prt2_runs, prt3_runs, prt4_runs]
+    conditions = [prt1_conditions, prt2_conditions, prt3_conditions, prt4_conditions]
+    
+    #for b) -> making an additional list for each category to store accuracy per fold
+    unique_cond = np.unique(conditions[0])
+    category_list = []
+    for c in range(0, len(unique_cond)):
+        #for every category we create a list inside the list
+        category_list.append(np.empty([2 #SVC vs. LogReg 
+                                       ,4 #4 participants
+                                       ,nruns #12 folds
+                                       ])
+                             )
+    
+    
+    
+    
+    for p in range(0, len(cdata)): 
+        #every participant
+        print('\nSVC vs Multinomial Logistic Regression\nSubject {} \n__________________'.format(p+1))
+        for fold in range(0, nruns): 
+            #fold
+            x_test  = cdata[p][np.where(runs[p]==fold),:][0] 
+            #since we are working with everything stored in lists, we need to specify again that this is the list inside the list
+            Y_test  = conditions[p][np.where(runs[p]==fold)]
+            x_train = cdata[p][np.where(runs[p]!=fold),:][0] 
+            Y_train = conditions[p][np.where(runs[p]!=fold)]
+            f_svc   = svc.fit(x_train, Y_train)
+            svc_acc[p][fold] = f_svc.score(x_test, Y_test)
+            f_logreg = logreg.fit(x_train, Y_train)
+            logreg_acc[p][fold] = f_logreg.score(x_test, Y_test)
+            
+            # gathering category specific accuracy for b)
+            for c in range(0,len(category_list)):
+                #SVC score
+                category_list[c][0][p][fold] = f_svc.score(x_test[Y_test == unique_cond[c],:], Y_test[Y_test==unique_cond[c]])
+                #LogReg score
+                category_list[c][1][p][fold] = f_logreg.score(x_test[Y_test == unique_cond[c],:], Y_test[Y_test==unique_cond[c]])
+                
+            
+            print('Fold: {0:3d}'.format(fold), end='')
+            print(' | SVC: {0:6.2f}'.format(svc_acc[p][fold]*100), end='%')
+            print(' | LogReg: {0:6.2f}'.format(logreg_acc[p][fold]*100), end='%')
+            if fold+1 < nruns:
+                print(' | Next fold.')
+            else:
+                print('\nDONE!')
+        print('*****')
+        print('SVC Accuracy for Subject %d: {0:6.2f}'.format(np.mean(svc_acc[p])*100)%(p+1), end='%')
+        print('\n*****')
+        print('Logistic Regression Accuracy for Subject %d: {0:6.2f}'.format(np.mean(logreg_acc[p])*100)%(p+1), end='%')
+        print('\n_________________________________________________________\n')
         
-        # gathering category specific accuracy for b)
-        for c in range(0,len(category_list)):
-            #SVC score
-            category_list[c][0][p][fold] = f_svc.score(x_test[Y_test == unique_cond[c],:], Y_test[Y_test==unique_cond[c]])
-            #LogReg score
-            category_list[c][1][p][fold] = f_logreg.score(x_test[Y_test == unique_cond[c],:], Y_test[Y_test==unique_cond[c]])
             
         
-        print('Fold: {0:3d}'.format(fold), end='')
-        print(' | SVC: {0:6.2f}'.format(svc_acc[p][fold]*100), end='%')
-        print(' | LogReg: {0:6.2f}'.format(logreg_acc[p][fold]*100), end='%')
-        if fold+1 < nruns:
-            print(' | Next fold.')
+            # ... #to be continued here!!     
+            # change scale in the end to be the same across OVO & ORV!!!!
+            # Show overall accuracy for OVO & OVR in figure and report for internal
+            # OVR also the single subject plots (as in document now)
+            
+    
+    #assigning the category information to individual variables
+    bottle = category_list[0]
+    cat = category_list[1]
+    chair = category_list[2]
+    face = category_list[3]
+    house = category_list[4]
+    scissors = category_list[5]
+    scramblepix = category_list[6]
+    shoe = category_list[7]
+            
+    
+    ## FIGURES 
+    # a) individual subjects
+    
+    fig, ax = plt.subplots(2,2, figsize=(20,15))
+    for p in range(0, len(cdata)):
+    
+        if p > 1:
+            ax[1,p-2].boxplot([svc_acc[p], logreg_acc[p]], showmeans=True, 
+                        meanprops={"marker":"s","markerfacecolor":"white", "markeredgecolor":"green"})
+            ax[1,p-2].scatter(np.random.normal(1, 0.02, len(svc_acc[p])), svc_acc[p], s = 30, color = 'b')
+            ax[1,p-2].scatter(np.random.normal(2, 0.02, len(logreg_acc[p])), logreg_acc[p], s = 30, color = 'r')
+            ax[1,p-2].set_xticklabels( ['SVC', 'LogisticRegression'], fontsize=20)
+            ax[1,p-2].set_ylim((0.4,0.95))
+            ax[1,p-2].set_title('Subject %d'%(p+1), fontsize=20)
+            ax[1,p-2].set_ylabel('Decoding Accuracy', fontsize = 20)
         else:
-            print('\nDONE!')
-    print('*****')
-    print('SVC Accuracy for Subject %d: {0:6.2f}'.format(np.mean(svc_acc[p])*100)%(p+1), end='%')
-    print('\n*****')
-    print('Logistic Regression Accuracy for Subject %d: {0:6.2f}'.format(np.mean(logreg_acc[p])*100)%(p+1), end='%')
-    print('\n_________________________________________________________\n')
+            ax[0,p].boxplot([svc_acc[p], logreg_acc[p]], showmeans=True, 
+                        meanprops={"marker":"s","markerfacecolor":"white", "markeredgecolor":"green"})
+            ax[0,p].scatter(np.random.normal(1, 0.02, len(svc_acc[p])), svc_acc[p], s = 30, color = 'b')
+            ax[0,p].scatter(np.random.normal(2, 0.02, len(logreg_acc[p])), logreg_acc[p], s = 30, color = 'r')
+            ax[0,p].set_xticklabels( ['SVC', 'LogisticRegression'], fontsize = 20)
+            ax[0,p].set_ylim((0.4,0.95))
+            ax[0,p].set_title('Subject %d'%(p+1), fontsize=20)
+            ax[0,p].set_ylabel('Decoding Accuracy', fontsize = 20)
+            
+    #fig.suptitle('Decoding Accuracy for Individual Subjects', fontsize=40)
+    for axs in ax.flat:
+        axs.label_outer()
     
-        
-    
-        # ... #to be continued here!!        
-        
-
-#assigning the category information to individual variables
-bottle = category_list[0]
-cat = category_list[1]
-chair = category_list[2]
-face = category_list[3]
-house = category_list[4]
-scissors = category_list[5]
-scramblepix = category_list[6]
-shoe = category_list[7]
-        
-#change working directory
-import os
-os.chdir(path='/Users/tydingsmcclary/Documents/SCAN MASTER/Semester2/Stats/Part2/Project/')
-
-## FIGURES 
-# a) individual subjects
-
-fig, ax = plt.subplots(2,2, figsize=(20,15))
-for p in range(0, len(cdata)):
-
-    if p > 1:
-        ax[1,p-2].boxplot([svc_acc[p], logreg_acc[p]], showmeans=True, 
-                    meanprops={"marker":"s","markerfacecolor":"white", "markeredgecolor":"green"})
-        ax[1,p-2].scatter(np.random.normal(1, 0.02, len(svc_acc[p])), svc_acc[p], s = 30, color = 'b')
-        ax[1,p-2].scatter(np.random.normal(2, 0.02, len(logreg_acc[p])), logreg_acc[p], s = 30, color = 'r')
-        ax[1,p-2].set_xticklabels( ['SVC', 'LogisticRegression'], fontsize=20)
-        ax[1,p-2].set_ylim((0.4,0.95))
-        ax[1,p-2].set_title('Subject %d'%(p+1), fontsize=20)
-        ax[1,p-2].set_ylabel('Decoding Accuracy', fontsize = 20)
+    if strat < 2:
+        plt.savefig('some_subplots_{}.png'.format(mult_strat[strat]))
     else:
-        ax[0,p].boxplot([svc_acc[p], logreg_acc[p]], showmeans=True, 
-                    meanprops={"marker":"s","markerfacecolor":"white", "markeredgecolor":"green"})
-        ax[0,p].scatter(np.random.normal(1, 0.02, len(svc_acc[p])), svc_acc[p], s = 30, color = 'b')
-        ax[0,p].scatter(np.random.normal(2, 0.02, len(logreg_acc[p])), logreg_acc[p], s = 30, color = 'r')
-        ax[0,p].set_xticklabels( ['SVC', 'LogisticRegression'], fontsize = 20)
-        ax[0,p].set_ylim((0.4,0.95))
-        ax[0,p].set_title('Subject %d'%(p+1), fontsize=20)
-        ax[0,p].set_ylabel('Decoding Accuracy', fontsize = 20)
-        
-#fig.suptitle('Decoding Accuracy for Individual Subjects', fontsize=40)
-for axs in ax.flat:
-    axs.label_outer()
-plt.savefig('some_subplots.png')
-plt.show()
+        plt.savefig('some_subplots_new.png')
+    plt.show()
+    
+    # a) complete  
+    plt.rc('axes', labelsize = 20)  
+    plt.figure(figsize=(10, 7))
+    plt.boxplot([np.mean(svc_acc, axis=1), np.mean(logreg_acc, axis=1)], showmeans=True,
+                meanprops={"marker":"s","markerfacecolor":"white", "markeredgecolor":"green"})
+    plt.scatter(np.random.normal(1, 0.01, len(cdata)), np.mean(svc_acc, axis=1), s = 30, color='b')
+    plt.scatter(np.random.normal(2, 0.01, len(cdata)), np.mean(logreg_acc, axis=1), s = 30, color='r')
+    plt.xticks([1, 2], ['SVC', 'LogisticRegression'], fontsize=20)
+    plt.ylabel('Decoding Accuracy')
+    plt.ylim((0.4,0.95))
+    #plt.title('Total Decoding Accuracy', fontsize=25)
+    if strat < 2:
+        plt.savefig('acc_tot_{}.png'.format(mult_strat[strat]))
+    else:
+        plt.savefig('acc_tot_new.png')
+    plt.show()
+    
+    
+    # b) for the individual classes
+    
+    plt.figure(figsize=(10, 7))
+    
+    classifiers = ['SVC', 'LogisticRegression']
+    all_categories = unique_cond
+    tick_position = np.arange(len(all_categories))
+    plt.yticks(tick_position + 0.25, all_categories)
+    height = 0.1
+    
+    for i, (color, classifier_name) in enumerate(zip(['b','r'],
+                                                     classifiers)):
+        score_means = [
+            np.mean(category_list[c][i])*100
+            for c in range(0,len(category_list))
+            ]
+        #score_sd = [
+        #    (np.std(category_list[c][i])*100)/(len(category_list[c][i]) * len(category_list[c][i][0])) * 1.96
+        #    for c in range(0,len(category_list))
+        #    ]
+    
+        plt.barh(tick_position, score_means,
+                 label=classifier_name,
+                 #xerr = score_sd,
+                 height=height, color=color)
+        tick_position = tick_position + height
+    
+    plt.xlabel('Accuracy Score in % True Positives')
+    plt.ylabel('Category')
+    plt.axvline(x=50, color='m', linestyle='--')
+    plt.xlim(xmax=100)
+    plt.legend(loc='lower right', ncol=1)
+    #plt.title('Classification Accuracy for Different Categories')
+    plt.tight_layout()        
+    if strat < 2:
+        plt.savefig('ind_classes_{}.png'.format(mult_strat[strat]))
+    else:
+        plt.savefig('ind_classes.png')
+    
+            
+    
+    
+    
+    
+    
 
-# a) complete  
-plt.rc('axes', labelsize = 20)  
-plt.figure(figsize=(10, 7))
-plt.boxplot([np.mean(svc_acc, axis=1), np.mean(logreg_acc, axis=1)], showmeans=True,
-            meanprops={"marker":"s","markerfacecolor":"white", "markeredgecolor":"green"})
-plt.scatter(np.random.normal(1, 0.01, len(cdata)), np.mean(svc_acc, axis=1), s = 30, color='b')
-plt.scatter(np.random.normal(2, 0.01, len(cdata)), np.mean(logreg_acc, axis=1), s = 30, color='r')
-plt.xticks([1, 2], ['SVC', 'LogisticRegression'], fontsize=20)
-plt.ylabel('Decoding Accuracy')
-plt.ylim((0.55,0.85))
-#plt.title('Total Decoding Accuracy', fontsize=25)
-plt.savefig('acc_tot.png')
-plt.show()
 
 
-# b) for the individual classes
 
-plt.figure(figsize=(10, 7))
 
-classifiers = ['SVC', 'LogisticRegression']
-all_categories = unique_cond
-tick_position = np.arange(len(all_categories))
-plt.yticks(tick_position + 0.25, all_categories)
-height = 0.1
 
-for i, (color, classifier_name) in enumerate(zip(['b','r'],
-                                                 classifiers)):
-    score_means = [
-        np.mean(category_list[c][i])*100
-        for c in range(0,len(category_list))
-        ]
-    #score_sd = [
-    #    (np.std(category_list[c][i])*100)/(len(category_list[c][i]) * len(category_list[c][i][0])) * 1.96
-    #    for c in range(0,len(category_list))
-    #    ]
 
-    plt.barh(tick_position, score_means,
-             label=classifier_name,
-             #xerr = score_sd,
-             height=height, color=color)
-    tick_position = tick_position + height
-
-plt.xlabel('Accuracy Score in % True Positives')
-plt.ylabel('Category')
-plt.axvline(x=50, color='m', linestyle='--')
-plt.xlim(xmax=100)
-plt.legend(loc='lower right', ncol=1)
-#plt.title('Classification Accuracy for Different Categories')
-plt.tight_layout()        
-plt.savefig('ind_classes.png')
-
-        
 # c) Searching the Grid for best C hyperparameter
 
 #we are going to use the GridSearchCV function from sklearn
@@ -317,7 +364,8 @@ for p in range(0, len(runs)):
 #we forget about the test data for now, as we only use the train data for our 
 #parameter search. we will use our svc classifier from above again:
 
-#SVC
+#SVC#
+
 svc = make_pipeline(StandardScaler(), SelectKBest(f_classif, k = 1500),
                     svm.LinearSVC(C=1.,max_iter=5000, penalty='l2'
                                   , multi_class='ovr'
@@ -328,12 +376,12 @@ svc = make_pipeline(StandardScaler(), SelectKBest(f_classif, k = 1500),
 gcv = GroupKFold(n_splits=9)
 
 #and the parameter grid to search
-p_grid = {'selectkbest__k': np.linspace(1000,2000,9, dtype='int'),
+p_grid = {'selectkbest__k': np.linspace(1000,2000,5, dtype='int'),
           'linearsvc__C': np.logspace(-5,2,num=8,base=10.)
           }
 
 #and empty lists to append our results of interest to
-best_parameters=[]
+best_parameters = []
 best_cv_score = []
 svc_score = []
 
@@ -376,3 +424,73 @@ for p in range(0,len(haxby_path)):
     print('Accuracy for Subject %d on test set: {0:6.2f}'.format(svc_score[p]*100)%(p+1), end='%')
     print('\n_________________________________________________________\n')
     
+
+
+
+
+
+
+#LogReg#
+
+logreg = make_pipeline(StandardScaler(), SelectKBest(f_classif, k = 1500),
+                       LogisticRegression(C=1., penalty='l2'
+                                          , multi_class='ovr'
+                                          , max_iter=5000, solver='lbfgs', 
+                                          class_weight='balanced', random_state=0),
+                       )
+
+#now we will specify our cross validation method with GroupKFold
+gcv = GroupKFold(n_splits=9)
+
+#and the parameter grid to search
+p_grid = {'selectkbest__k': np.linspace(1000,2000,5, dtype='int'),
+          'logisticregression__C': np.logspace(-5,2,num=8,base=10.)
+          }
+
+#and empty lists to append our results of interest to
+best_parameters_lr = []
+best_cv_score_lr = []
+lr_score = []
+
+
+# looping over every participant, first doing the GridSearch, then taking the
+# best parameters to fit a model on the entire training data and then get the
+# score for the performance on the test data !
+
+for p in range(0,len(haxby_path)):
+    
+    print('\nSearch for best LR C Parameter & best k Features \nSubject {} \n__________________'.format(p+1))
+    
+    #first we define the GridSearch
+    g_search = GridSearchCV(logreg
+                            , param_grid = p_grid #, verbose=2
+                            , cv = gcv.split(train_cdata[p],train_conditions[p],train_runs[p])
+                            )
+    
+    #now we use the grid search on the train data
+    g_search.fit(train_cdata[p], train_conditions[p])
+    
+    #once the best parameters are found
+    best_parameters_lr.append(g_search.best_params_)
+    best_cv_score_lr.append(g_search.best_score_)
+    print('*****')
+    print('Best C Parameter for Subject %d: {}'.format(best_parameters_lr[p]['logisticregression__C'])%(p+1), end='')
+    print('\nBest k Features for Subject %d: {}'.format(best_parameters_lr[p]['selectkbest__k'])%(p+1), end='')
+    print('\n*****')
+    print('Best CV Score for Subject %d: {0:6.2f}'.format(best_cv_score_lr[p]*100)%(p+1), end='%')
+    
+    #now we make a new classifier with the best parameters
+    lr_bp = logreg.set_params(selectkbest__k = g_search.best_params_['selectkbest__k']
+                            , logisticregression__C = g_search.best_params_['logisticregression__C']
+                            )
+    print('\nClassifier with best parameters:\n{}'.format(lr_bp))
+    #and fit to complete training set and use to predict test set
+    lr_bp.fit(train_cdata[p], train_conditions[p])
+    lr_score.append(lr_bp.score(test_cdata[p], test_conditions[p]))
+    print('\n*****')
+    print('Accuracy for Subject %d on test set: {0:6.2f}'.format(lr_score[p]*100)%(p+1), end='%')
+    print('\n_________________________________________________________\n')
+    
+
+
+
